@@ -82,17 +82,7 @@ func CountSubKeys(pub crypto.PubKey) int {
 // in the order they appear in tx.GetMsgs().
 // Duplicate addresses will be omitted.
 func (tx StdTx) GetSigners() []sdk.AccAddress {
-	seen := map[string]bool{}
-	var signers []sdk.AccAddress
-	for _, msg := range tx.GetMsgs() {
-		for _, addr := range msg.GetSigners() {
-			if !seen[addr.String()] {
-				signers = append(signers, addr)
-				seen[addr.String()] = true
-			}
-		}
-	}
-	return signers
+	return getSigners(tx.GetMsgs())
 }
 
 // GetMemo returns the memo

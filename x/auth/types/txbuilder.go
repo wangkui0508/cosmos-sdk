@@ -1,17 +1,31 @@
 package types
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/viper"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	crkeys "github.com/cosmos/cosmos-sdk/crypto/keys"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+var (
+	// simulation signature values used to estimate gas consumption
+	SimSecp256k1Pubkey secp256k1.PubKeySecp256k1
+	SimSecp256k1Sig    [64]byte
+)
+
+func init() {
+	// This decodes a valid hex string into a sepc256k1Pubkey for use in transaction simulation
+	bz, _ := hex.DecodeString("035AD6810A47F073553FF30D2FCC7E0D3B1C0B74B61A1AAA2582344037151E143A")
+	copy(SimSecp256k1Pubkey[:], bz)
+}
 
 // TxBuilder implements a transaction context created in SDK modules.
 type TxBuilder struct {
@@ -236,8 +250,16 @@ func (bldr TxBuilder) BuildTxForSim(msgs []sdk.Msg) ([]byte, error) {
 		return nil, err
 	}
 
-	// the ante handler will populate with a sentinel pubkey
-	sigs := []StdSignature{{}}
+	// create placeholder signatures in simulate mode
+	// so that antehandler can accurately estimate gas cost
+	signers := getSigners(signMsg.Msgs)
+	sigs := make([]StdSignature, len(signers))
+	for i := range signers {
+		sigs[i] = StdSignature{
+			PubKey:    SimSecp256k1Pubkey,
+			Signature: SimSecp256k1Sig[:],
+		}
+	}
 	return bldr.txEncoder(NewStdTx(signMsg.Msgs, signMsg.Fee, sigs, signMsg.Memo))
 }
 

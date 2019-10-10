@@ -2,7 +2,6 @@ package ante
 
 import (
 	"bytes"
-	"encoding/hex"
 
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -18,18 +17,8 @@ import (
 )
 
 var (
-	// simulation signature values used to estimate gas consumption
-	simSecp256k1Pubkey secp256k1.PubKeySecp256k1
-	simSecp256k1Sig    [64]byte
-
 	_ SigVerifiableTx = (*types.StdTx)(nil) // assert StdTx implements SigVerifiableTx
 )
-
-func init() {
-	// This decodes a valid hex string into a sepc256k1Pubkey for use in transaction simulation
-	bz, _ := hex.DecodeString("035AD6810A47F073553FF30D2FCC7E0D3B1C0B74B61A1AAA2582344037151E143A")
-	copy(simSecp256k1Pubkey[:], bz)
-}
 
 // SignatureVerificationGasConsumer is the type of function that is used to both
 // consume gas when verifying signatures and also to accept or reject different types of pubkeys
@@ -120,7 +109,6 @@ func (sgcd SigGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 	sigs := sigTx.GetSignatures()
 
 	// stdSigs contains the sequence number, account number, and signatures.
-	// When simulating, this would just be a 0-length slice.
 	signerAddrs := sigTx.GetSigners()
 
 	for i, sig := range sigs {
@@ -130,17 +118,13 @@ func (sgcd SigGasConsumeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		}
 		pubKey := signerAcc.GetPubKey()
 
-		if simulate {
-			// Simulated txs should not contain a signature and are not required to
-			// contain a pubkey, so we must account for tx size of including a
-			// StdSignature (Amino encoding) and simulate gas consumption
-			// (assuming a SECP256k1 simulation key).
-			consumeSimSigGas(ctx.GasMeter(), pubKey, sig, params)
-		} else {
-			err = sgcd.sigGasConsumer(ctx.GasMeter(), sig, pubKey, params)
-			if err != nil {
-				return ctx, err
-			}
+		if simulate && pubKey == nil {
+			pubKey = types.SimSecp256k1Pubkey
+		}
+
+		err = sgcd.sigGasConsumer(ctx.GasMeter(), sig, pubKey, params)
+		if err != nil {
+			return ctx, err
 		}
 	}
 
@@ -310,29 +294,6 @@ func consumeMultisignatureVerificationGas(meter sdk.GasMeter,
 			sigIndex++
 		}
 	}
-}
-
-// Internal function that simulates gas consumption of signature verification when simulate=true
-// TODO: allow users to simulate signatures other than auth.StdSignature
-func consumeSimSigGas(gasmeter sdk.GasMeter, pubkey crypto.PubKey, sig []byte, params types.Params) {
-	simSig := types.StdSignature{
-		Signature: sig,
-		PubKey:    pubkey,
-	}
-	if len(sig) == 0 {
-		simSig.Signature = simSecp256k1Sig[:]
-	}
-
-	sigBz := types.ModuleCdc.MustMarshalBinaryLengthPrefixed(simSig)
-	cost := sdk.Gas(len(sigBz) + 6)
-
-	// If the pubkey is a multi-signature pubkey, then we estimate for the maximum
-	// number of signers.
-	if _, ok := pubkey.(multisig.PubKeyMultisigThreshold); ok {
-		cost *= params.TxSigLimit
-	}
-
-	gasmeter.ConsumeGas(params.TxSizeCostPerByte*cost, "txSize")
 }
 
 // GetSignerAcc returns an account for a given address that is expected to sign

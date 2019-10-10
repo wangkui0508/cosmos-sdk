@@ -1,6 +1,7 @@
 package simapp
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -123,6 +124,10 @@ func GenTx(msgs []sdk.Msg, accnums []uint64, seq []uint64, priv ...crypto.PrivKe
 		sig, err := p.Sign(auth.StdSignBytes("", accnums[i], seq[i], fee, msgs, memo))
 		if err != nil {
 			panic(err)
+		}
+
+		if p.PubKey() == nil {
+			fmt.Println("PUBKEY IS NIL!!!!!")
 		}
 
 		sigs[i] = auth.StdSignature{
