@@ -63,7 +63,7 @@ func Test_runDeleteCmd(t *testing.T) {
 	// User confirmation missing
 	err = runDeleteCmd(deleteKeyCommand, []string{fakeKeyName1})
 	require.Error(t, err)
-	require.Equal(t, "EOF", err.Error())
+	require.Equal(t, "aborted", err.Error())
 
 	{
 		if runningOnServer {
