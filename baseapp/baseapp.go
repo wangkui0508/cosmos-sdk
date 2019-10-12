@@ -598,17 +598,26 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx sdk.Tx) (result sdk
 		}
 
 		// GasMeter expected to be set in AnteHandler
-		gasWanted = ctx.GasMeter().Limit()
+		gasWanted = newCtx.GasMeter().Limit()
 
 		if err != nil {
 			res := sdk.ResultFromError(err)
 			res.GasWanted = gasWanted
-			res.GasUsed = ctx.GasMeter().GasConsumed()
+			res.GasUsed = newCtx.GasMeter().GasConsumed()
 			return res
 		}
 
 		msCache.Write()
 	}
+
+	if mode == runTxModeSimulate {
+		fmt.Println("SIMULATE")
+	} else if mode == runTxModeCheck {
+		fmt.Println("CHECK")
+	} else {
+		fmt.Println("DELIVER")
+	}
+	fmt.Printf("GAS CONSUMED AFTER ANTE: %d\n", ctx.GasMeter().GasConsumed())
 
 	// Create a new Context based off of the existing Context with a cache-wrapped
 	// MultiStore in case message processing fails. At this point, the MultiStore
@@ -616,6 +625,9 @@ func (app *BaseApp) runTx(mode runTxMode, txBytes []byte, tx sdk.Tx) (result sdk
 	runMsgCtx, msCache := app.cacheTxContext(ctx, txBytes)
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
+	result.GasUsed = runMsgCtx.GasMeter().GasConsumed()
+
+	fmt.Printf("GAS CONSUMED AFTER DELIVER_msgs: %d\n", ctx.GasMeter().GasConsumed())
 
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != runTxModeDeliver {

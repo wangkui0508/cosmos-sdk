@@ -150,6 +150,7 @@ func SignCheckDeliver(
 
 	// Must simulate now as CheckTx doesn't run Msgs anymore
 	res := app.Simulate(txBytes, tx)
+	simGas := res.GasUsed
 
 	if expSimPass {
 		require.Equal(t, sdk.CodeOK, res.Code, res.Log)
@@ -160,6 +161,7 @@ func SignCheckDeliver(
 	// Simulate a sending a transaction and committing a block
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 	res = app.Deliver(tx)
+	require.True(t, simGas >= res.GasUsed, "Simulation did not accurately estimate gas consumption. Expected %d, got %d. Delta: %d", simGas, res.GasUsed, res.GasUsed-simGas)
 
 	if expPass {
 		require.Equal(t, sdk.CodeOK, res.Code, res.Log)
