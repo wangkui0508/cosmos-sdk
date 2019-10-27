@@ -22,7 +22,9 @@ func SendRequest(pubkey crypto.PubKey, msg []byte, sig []byte) {
 				atomic.AddInt64(&ErrorCount, 1)
 			}
 			//fmt.Printf("Finished Verify %v pending %d ErrorCount %d\n", ok, newFinished, newCount)
-			SyncChan <- newFinished
+			if newFinished == TotalRequest {
+				SyncChan <- newFinished
+			}
 		},
 	}
 	atomic.AddInt64(&TotalRequest, 1)
