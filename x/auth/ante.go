@@ -12,6 +12,7 @@ import (
 	"github.com/tendermint/tendermint/crypto/secp256k1"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/sigbalancer"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 )
@@ -226,8 +227,11 @@ func processSig(
 		return nil, res
 	}
 
-	if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-		return nil, sdk.ErrUnauthorized("signature verification failed; verify correct account sequence and chain-id").Result()
+	//if !simulate && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+	//	return nil, sdk.ErrUnauthorized("signature verification failed; verify correct account sequence and chain-id").Result()
+	//}
+	if !simulate {
+		sigbalancer.SendRequest(pubKey, signBytes, sig.Signature)
 	}
 
 	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
